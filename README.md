@@ -1,6 +1,9 @@
 ![GitHub Logo](/doc/media/Grbl Logo 250px.png)
+
 Grbl is a no-compromise, high performance, low cost alternative to parallel-port-based motion control for CNC milling. 
+
 This fork of Grbl runs on an Arduino with a 328p processor (Uno, Duemilanove, Nano, Micro, etc) and Arduino Leonardo (32u4 processor).
+
 You can control servo attached to spindle enable pin by 1-2ms pulses. 
 
 
