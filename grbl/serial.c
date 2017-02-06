@@ -64,6 +64,7 @@ uint8_t serial_get_tx_buffer_count()
 
 void serial_init()
 {
+#ifdef CPU_MAP_ATMEGA328P 
   // Set baud rate
   #if BAUD_RATE < 57600
     uint16_t UBRR0_value = ((F_CPU / (8L * BAUD_RATE)) - 1)/2 ;
@@ -77,8 +78,27 @@ void serial_init()
 
   // enable rx, tx, and interrupt on complete reception of a byte
   UCSR0B |= (1<<RXEN0 | 1<<TXEN0 | 1<<RXCIE0);
+#endif
 
   // defaults to 8-bit, no parity, 1 stop bit
+#ifdef CPU_MAP_ATMEGA32u4 // (Arduino Leonardo).
+   // Set baud rate
+   #if BAUD_RATE < 57600
+     uint16_t UBRR1_value = ((F_CPU / (8L * BAUD_RATE)) - 1)/2 ;
+     UCSR1A &= ~(1 << U2X0); // baud doubler off  - Only needed on Uno XXX
+   #else
+     uint16_t UBRR1_value = ((F_CPU / (4L * BAUD_RATE)) - 1)/2;
+     UCSR1A |= (1 << U2X1);  // baud doubler on for high baud rates, i.e. 115200
+   #endif
+   UBRR1H = UBRR1_value >> 8;
+   UBRR1L = UBRR1_value;
+ 
+   // enable rx, tx, and interrupt on complete reception of a byte
+   UCSR1B |= (1<<RXEN1 | 1<<TXEN1 | 1<<RXCIE1);
+ 
+   // defaults to 8-bit, no parity, 1 stop bit
+#endif
+
 }
 
 
@@ -99,7 +119,14 @@ void serial_write(uint8_t data) {
   serial_tx_buffer_head = next_head;
 
   // Enable Data Register Empty Interrupt to make sure tx-streaming is running
+#ifdef CPU_MAP_ATMEGA328P 
   UCSR0B |=  (1 << UDRIE0);
+#endif
+
+#ifdef CPU_MAP_ATMEGA32u4 
+  UCSR1B |=  (1 << UDRIE1);
+#endif
+
 }
 
 
@@ -109,7 +136,13 @@ ISR(SERIAL_UDRE)
   uint8_t tail = serial_tx_buffer_tail; // Temporary serial_tx_buffer_tail (to optimize for volatile)
 
   // Send a byte from the buffer
+#ifdef CPU_MAP_ATMEGA328P 
   UDR0 = serial_tx_buffer[tail];
+#endif
+
+#ifdef CPU_MAP_ATMEGA32u4 
+  UDR1 = serial_tx_buffer[tail];
+#endif
 
   // Update tail position
   tail++;
@@ -118,7 +151,14 @@ ISR(SERIAL_UDRE)
   serial_tx_buffer_tail = tail;
 
   // Turn off Data Register Empty Interrupt to stop tx-streaming if this concludes the transfer
+#ifdef CPU_MAP_ATMEGA328P 
   if (tail == serial_tx_buffer_head) { UCSR0B &= ~(1 << UDRIE0); }
+#endif
+
+#ifdef CPU_MAP_ATMEGA32u4 
+  if (tail == serial_tx_buffer_head) { UCSR1B &= ~(1 << UDRIE1); }
+#endif
+
 }
 
 
@@ -142,7 +182,14 @@ uint8_t serial_read()
 
 ISR(SERIAL_RX)
 {
+#ifdef CPU_MAP_ATMEGA328P 
   uint8_t data = UDR0;
+#endif
+
+#ifdef CPU_MAP_ATMEGA32u4 
+  uint8_t data = UDR1;
+#endif
+
   uint8_t next_head;
 
   // Pick off realtime command characters directly from the serial stream. These characters are

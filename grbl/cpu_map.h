@@ -124,11 +124,18 @@
 
   // Variable spindle configuration below. Do not change unless you know what you are doing.
   // NOTE: Only used when variable spindle is enabled.
-  #define SPINDLE_PWM_MAX_VALUE     255 // Don't change. 328p fast PWM mode fixes top value as 255.
-  #ifndef SPINDLE_PWM_MIN_VALUE
-    #define SPINDLE_PWM_MIN_VALUE   1   // Must be greater than zero.
+  #ifndef SPINDLE_SERVO_MODE
+    #define SPINDLE_PWM_MAX_VALUE     255 // Don't change. 328p fast PWM mode fixes top value as 255.
+    #ifndef SPINDLE_PWM_MIN_VALUE
+      #define SPINDLE_PWM_MIN_VALUE   1   // Must be greater than zero.
+    #endif
+    #define SPINDLE_PWM_OFF_VALUE     0
+  #else
+    #define SPINDLE_PWM_MAX_VALUE     32   // Servo 2ms pulse
+    #define SPINDLE_PWM_MIN_VALUE     16    // Servo 1ms pulse
+    #define SPINDLE_PWM_OFF_VALUE     24    // Servo 1,5ms pulse
   #endif
-  #define SPINDLE_PWM_OFF_VALUE     0
+
   #define SPINDLE_PWM_RANGE         (SPINDLE_PWM_MAX_VALUE-SPINDLE_PWM_MIN_VALUE)
   #define SPINDLE_TCCRA_REGISTER	  TCCR2A
   #define SPINDLE_TCCRB_REGISTER	  TCCR2B
@@ -136,11 +143,18 @@
   #define SPINDLE_COMB_BIT	        COM2A1
 
   // Prescaled, 8-bit Fast PWM mode.
-  #define SPINDLE_TCCRA_INIT_MASK   ((1<<WGM20) | (1<<WGM21))  // Configures fast PWM mode.
+
+  #ifndef SPINDLE_SERVO_MODE
+    #define SPINDLE_TCCRA_INIT_MASK   ((1<<WGM20) | (1<<WGM21))  // Configures fast PWM mode.
+  #else
+    #define SPINDLE_TCCRA_INIT_MASK   ((1<<WGM20) | (1<<WGM21) | (1<<COM2A1))  // Configures fast PWM mode.
+										// PWM Output just after initializartion for Servo mode
+  #endif
   // #define SPINDLE_TCCRB_INIT_MASK   (1<<CS20)               // Disable prescaler -> 62.5kHz
   // #define SPINDLE_TCCRB_INIT_MASK   (1<<CS21)               // 1/8 prescaler -> 7.8kHz (Used in v0.9)
   // #define SPINDLE_TCCRB_INIT_MASK   ((1<<CS21) | (1<<CS20)) // 1/32 prescaler -> 1.96kHz
   #define SPINDLE_TCCRB_INIT_MASK      (1<<CS22)               // 1/64 prescaler -> 0.98kHz (J-tech laser)
+  //#define SPINDLE_TCCRB_INIT_MASK    ((1<<CS22)|(1<<CS21)|(1<<CS20))  // 1/1024 prescaler -> 61Hz servo mode)
 
   // NOTE: On the 328p, these must be the same as the SPINDLE_ENABLE settings.
   #define SPINDLE_PWM_DDR	  DDRB
@@ -148,6 +162,154 @@
   #define SPINDLE_PWM_BIT	  3    // Uno Digital Pin 11
 
 #endif
+
+#ifdef CPU_MAP_ATMEGA32u4 // (Arduino Uno) Officially supported by Grbl.
+ 
+   // Define serial port pins and interrupt vectors.
+   #define SERIAL_RX     USART1_RX_vect
+   #define SERIAL_UDRE   USART1_UDRE_vect
+ 
+   // Define step pulse output pins. NOTE: All step bit pins must be on the same port.
+   #define STEP_DDR        DDRD
+   #define STEP_PORT       PORTD
+   #define X_STEP_BIT      1  // Uno Digital Pin 2
+   #define Y_STEP_BIT      0  // Uno Digital Pin 3
+   #define Z_STEP_BIT      4  // Uno Digital Pin 4
+   #define STEP_MASK       ((1<<X_STEP_BIT)|(1<<Y_STEP_BIT)|(1<<Z_STEP_BIT)) // All step bits
+ 
+   // Define step direction output pins. NOTE: All direction pins must be on the same port.
+   #define DIRECTION_X_DDR     DDRC
+   #define DIRECTION_X_PORT    PORTC
+   #define DIRECTION_Y_DDR     DDRD
+   #define DIRECTION_Y_PORT    PORTD
+   #define DIRECTION_Z_DDR     DDRE
+   #define DIRECTION_Z_PORT    PORTE
+   #define X_DIRECTION_BIT   5  // Uno Digital Pin 5
+   #define X_DIRECTION_BIT_OVR   6  // Fuckin Leonardo override
+   #define Y_DIRECTION_BIT   7  // Uno Digital Pin 6
+   #define Z_DIRECTION_BIT   6  // Uno Digital Pin 7
+   #define DIRECTION_X_MASK    (1<<X_DIRECTION_BIT) // All direction bits
+   #define DIRECTION_X_MASK_OVR    (1<<X_DIRECTION_BIT_OVR) // All direction bits
+   #define DIRECTION_Y_MASK    (1<<Y_DIRECTION_BIT) // All direction bits
+   #define DIRECTION_Z_MASK    (1<<Z_DIRECTION_BIT) // All direction bits
+ 
+   // Define stepper driver enable/disable output pin.
+   #define STEPPERS_DISABLE_DDR    DDRB
+   #define STEPPERS_DISABLE_PORT   PORTB
+   #define STEPPERS_DISABLE_BIT    4  // Uno Digital Pin 8
+   #define STEPPERS_DISABLE_MASK   (1<<STEPPERS_DISABLE_BIT)
+ 
+   // Define homing/hard limit switch input pins and limit interrupt vectors.
+   // NOTE: All limit bit pins must be on the same port, but not on a port with other input pins (CONTROL).
+   #define LIMIT_DDR        DDRB
+   #define LIMIT_PIN        PINB
+   #define LIMIT_PORT       PORTB
+   #define X_LIMIT_BIT      5  // Uno Digital Pin 9
+   #define Y_LIMIT_BIT      6  // Uno Digital Pin 10
+   #define Z_LIMIT_BIT      7  // Uno Digital Pin 11
+//  #ifdef VARIABLE_SPINDLE // Z Limit pin and spindle enabled swapped to access hardware PWM on Pin 11.
+//    #define Z_LIMIT_BIT	   7 // Uno Digital Pin 12
+//  #else
+//    #define Z_LIMIT_BIT    7  // Uno Digital Pin 11
+ //  #endif
+   #define LIMIT_MASK       ((1<<X_LIMIT_BIT)|(1<<Y_LIMIT_BIT)|(1<<Z_LIMIT_BIT)) // All limit bits
+   #define LIMIT_INT        PCIE0  // Pin change interrupt enable pin
+   #define LIMIT_INT_vect   PCINT0_vect
+   #define LIMIT_PCMSK      PCMSK0 // Pin change interrupt register
+ 
+   // Define spindle enable and spindle direction output pins.
+   #define SPINDLE_ENABLE_DDR    DDRC
+   #define SPINDLE_ENABLE_PORT   PORTC
+   #ifdef VARIABLE_SPINDLE
+     #ifdef USE_SPINDLE_DIR_AS_ENABLE_PIN
+       // If enabled, spindle direction pin now used as spindle enable, while PWM remains on D11.
+       #define SPINDLE_ENABLE_BIT    7  // Uno Digital Pin 13 (NOTE: D13 can't be pulled-high input due to LED.)
+     #else
+       #define SPINDLE_ENABLE_BIT    7  // Uno Digital Pin 13
+     #endif
+   #else
+     #define SPINDLE_ENABLE_BIT    7  // Uno Digital Pin 13
+   #endif
+ 
+   #ifndef USE_SPINDLE_DIR_AS_ENABLE_PIN
+     #define SPINDLE_DIRECTION_DDR   DDRD
+     #define SPINDLE_DIRECTION_PORT  PORTD
+     #define SPINDLE_DIRECTION_BIT   6  // Uno Digital Pin 12 
+   #endif
+ 
+   // Define flood and mist coolant enable output pins.
+   #define COOLANT_FLOOD_DDR   DDRF
+   #define COOLANT_FLOOD_PORT  PORTF
+   #define COOLANT_FLOOD_BIT   4  // Uno Analog Pin 3
+   #define COOLANT_MIST_DDR   DDRF
+   #define COOLANT_MIST_PORT  PORTF
+   #define COOLANT_MIST_BIT   1 // Uno Analog Pin 4
+ 
+   #undef ENABLE_SAFETY_DOOR_INPUT_PIN
+ /* We don't have  enought PCINT enabled pins on atmega32u4
+ 	
+   // Define user-control controls (cycle start, reset, feed hold) input pins.
+   // NOTE: All CONTROLs pins must be on the same port and not on a port with other input pins (limits).
+   #define CONTROL_DDR       DDRC
+   #define CONTROL_PIN       PINC
+   #define CONTROL_PORT      PORTC
+   #define CONTROL_RESET_BIT         0  // Uno Analog Pin 0
+   #define CONTROL_FEED_HOLD_BIT     1  // Uno Analog Pin 1
+   #define CONTROL_CYCLE_START_BIT   2  // Uno Analog Pin 2
+   #define CONTROL_SAFETY_DOOR_BIT   1  // Uno Analog Pin 1 NOTE: Safety door is shared with feed hold. Enabled by config define.
+   #define CONTROL_INT       PCIE1  // Pin change interrupt enable pin
+   #define CONTROL_INT_vect  PCINT1_vect
+   #define CONTROL_PCMSK     PCMSK1 // Pin change interrupt register
+   #define CONTROL_MASK      ((1<<CONTROL_RESET_BIT)|(1<<CONTROL_FEED_HOLD_BIT)|(1<<CONTROL_CYCLE_START_BIT)|(1<<CONTROL_SAFETY_DOOR_BIT))
+   #define CONTROL_INVERT_MASK   CONTROL_MASK // May be re-defined to only invert certain control pins.
+ */
+   // Define probe switch input pin.
+   #define PROBE_DDR       DDRC
+   #define PROBE_PIN       PINC
+   #define PROBE_PORT      PORTC
+   #define PROBE_BIT       5  // Uno Analog Pin 5
+   #define PROBE_MASK      (1<<PROBE_BIT)
+ 
+   // Variable spindle configuration below. Do not change unless you know what you are doing.
+   // NOTE: Only used when variable spindle is enabled.
+ 
+ 
+   #ifndef SPINDLE_SERVO_MODE
+     #define SPINDLE_PWM_MAX_VALUE     255 // Don't change. 328p fast PWM mode fixes top value as 255.
+     #ifndef SPINDLE_PWM_MIN_VALUE
+      #define SPINDLE_PWM_MIN_VALUE   1   // Must be greater than zero.
+     #endif
+     #define SPINDLE_PWM_OFF_VALUE     0
+   #else
+     #define SPINDLE_PWM_MAX_VALUE     32   // Servo 2ms pulse
+     #define SPINDLE_PWM_MIN_VALUE     16    // Servo 1ms pulse
+     #define SPINDLE_PWM_OFF_VALUE     24    // Servo 1,5ms pulse
+   #endif
+
+   #define SPINDLE_PWM_RANGE         (SPINDLE_PWM_MAX_VALUE-SPINDLE_PWM_MIN_VALUE)
+ 
+   #define SPINDLE_TCCRA_REGISTER	  TCCR4A
+   #define SPINDLE_TCCRB_REGISTER	  TCCR4B
+   #define SPINDLE_OCR_REGISTER            OCR4A
+   #define SPINDLE_COMB_BIT	          COM4A1
+ 
+   // Prescaled, 8-bit Fast PWM mode.
+   #ifndef SPINDLE_SERVO_MODE
+     #define SPINDLE_TCCRA_INIT_MASK      (1<<PWM4A)
+   #else
+     #define SPINDLE_TCCRA_INIT_MASK      ((1<<PWM4A)| (1<<COM4A1))  // PWM Output just after initializartion for Servo mode
+   #endif
+   // #define SPINDLE_TCCRB_INIT_MASK   ((0<<CS43) | (1<<CS42) | (0<<CS41) | (1<<CS40)) // 1/16 prescaler -> 7.8kHz (Used in v0.9)
+   // #define SPINDLE_TCCRB_INIT_MASK   ((0<<CS43) | (1<<CS42) | (1<<CS41) | (1<<CS40)) // 1/64 prescaler -> 1.96kHz
+   // #define SPINDLE_TCCRB_INIT_MASK   ((1<<CS43) | (0<<CS42) | (0<<CS41) | (0<<CS40)) // 1/128 prescaler -> 0.98kHz (J-tech laser)
+   #define SPINDLE_TCCRB_INIT_MASK      ((1<<CS43) | (1<<CS42) | (0<<CS41) | (0<<CS40)) // 1/2048 prescaler -> 61Hz Servo
+   
+   // NOTE: On the 328p, these must be the same as the SPINDLE_ENABLE settings.
+   #define SPINDLE_PWM_DDR	  DDRC
+   #define SPINDLE_PWM_PORT  PORTC
+   #define SPINDLE_PWM_BIT	  7    // Uno Digital Pin 13
+ 
+ #endif
 
 /*
 #ifdef CPU_MAP_CUSTOM_PROC

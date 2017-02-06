@@ -310,7 +310,15 @@ ISR(TIMER1_COMPA_vect)
   if (busy) { return; } // The busy-flag is used to avoid reentering this interrupt
 
   // Set the direction pins a couple of nanoseconds before we step the steppers
-  DIRECTION_PORT = (DIRECTION_PORT & ~DIRECTION_MASK) | (st.dir_outbits & DIRECTION_MASK);
+  #ifdef CPU_MAP_ATMEGA328P 
+    DIRECTION_PORT = (DIRECTION_PORT & ~DIRECTION_MASK) | (st.dir_outbits & DIRECTION_MASK);   
+  #endif
+
+  #ifdef CPU_MAP_ATMEGA32u4 
+    DIRECTION_X_PORT = (DIRECTION_X_PORT & ~DIRECTION_X_MASK_OVR) | ((st.dir_outbits & DIRECTION_X_MASK)==0 ? 0 : DIRECTION_X_MASK_OVR);
+    DIRECTION_Y_PORT = (DIRECTION_Y_PORT & ~DIRECTION_Y_MASK) | (st.dir_outbits & DIRECTION_Y_MASK);
+    DIRECTION_Z_PORT = (DIRECTION_Z_PORT & ~DIRECTION_Z_MASK) | (st.dir_outbits & DIRECTION_Z_MASK);
+  #endif
 
   // Then pulse the stepping pins
   #ifdef STEP_PULSE_DELAY
@@ -499,7 +507,16 @@ void st_reset()
 
   // Initialize step and direction port pins.
   STEP_PORT = (STEP_PORT & ~STEP_MASK) | step_port_invert_mask;
-  DIRECTION_PORT = (DIRECTION_PORT & ~DIRECTION_MASK) | dir_port_invert_mask;
+  #ifdef CPU_MAP_ATMEGA328P 
+    DIRECTION_PORT = (DIRECTION_PORT & ~DIRECTION_MASK) | dir_port_invert_mask;
+  #endif
+
+  #ifdef CPU_MAP_ATMEGA32u4 
+    DIRECTION_X_PORT = (DIRECTION_X_PORT & ~DIRECTION_X_MASK_OVR) | ((dir_port_invert_mask & DIRECTION_X_MASK) ? DIRECTION_X_MASK_OVR:0) ;
+    DIRECTION_Y_PORT = (DIRECTION_Y_PORT & ~DIRECTION_Y_MASK)     | ((dir_port_invert_mask & DIRECTION_Y_MASK) ? DIRECTION_Y_MASK:0);
+    DIRECTION_Z_PORT = (DIRECTION_Z_PORT & ~DIRECTION_Z_MASK)     | ((dir_port_invert_mask & DIRECTION_Z_MASK) ? DIRECTION_Z_MASK:0);
+  #endif
+
 }
 
 
@@ -509,7 +526,15 @@ void stepper_init()
   // Configure step and direction interface pins
   STEP_DDR |= STEP_MASK;
   STEPPERS_DISABLE_DDR |= 1<<STEPPERS_DISABLE_BIT;
-  DIRECTION_DDR |= DIRECTION_MASK;
+  #ifdef CPU_MAP_ATMEGA328P 
+    DIRECTION_DDR |= DIRECTION_MASK;
+  #endif
+
+  #ifdef CPU_MAP_ATMEGA32u4 
+    DIRECTION_X_DDR |= DIRECTION_X_MASK_OVR;
+    DIRECTION_Y_DDR |= DIRECTION_Y_MASK;
+    DIRECTION_Z_DDR |= DIRECTION_Z_MASK;
+  #endif
 
   // Configure Timer 1: Stepper Driver Interrupt
   TCCR1B &= ~(1<<WGM13); // waveform generation = 0100 = CTC

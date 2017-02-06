@@ -36,6 +36,9 @@
 // If doing so, simply comment out these two defines and see instructions below.
 #define DEFAULTS_GENERIC
 #define CPU_MAP_ATMEGA328P // Arduino Uno CPU
+//#define CPU_MAP_ATMEGA32u4 // Arduino Leonardo CPU
+//      for sure it is not the best choice for grbl because of CPU cpecific, e.g. it has only 8 PCINT 
+//      enabled pins so there is no space for CONTROL. 
 
 // Serial baud rate
 // #define BAUD_RATE 230400
@@ -357,6 +360,13 @@
 // NOTE: BEWARE! The Arduino bootloader toggles the D13 pin when it powers up. If you flash Grbl with
 // a programmer (you can use a spare Arduino as "Arduino as ISP". Search the web on how to wire this.),
 // this D13 LED toggling should go away. We haven't tested this though. Please report how it goes!
+
+#define SPINDLE_SERVO_MODE
+// Variation of VARIABLE_SPINDLE_MODE for conroling servo by 1-2ms pulses with folowing behavior:
+// spindle speed is proportional translated to 1-2ms. 
+// after M3 or M4  servo is moving to some scaled position. 
+// after M5 Servo is moving to PWM_OFF_VALUE
+
 // #define USE_SPINDLE_DIR_AS_ENABLE_PIN // Default disabled. Uncomment to enable.
 
 // Alters the behavior of the spindle enable pin with the USE_SPINDLE_DIR_AS_ENABLE_PIN option . By default,

@@ -23,6 +23,7 @@
 
 void system_init()
 {
+#ifndef CPU_MAP_ATMEGA32u4
   CONTROL_DDR &= ~(CONTROL_MASK); // Configure as input pins
   #ifdef DISABLE_CONTROL_PIN_PULL_UP
     CONTROL_PORT &= ~(CONTROL_MASK); // Normal low operation. Requires external pull-down.
@@ -31,6 +32,7 @@ void system_init()
   #endif
   CONTROL_PCMSK |= CONTROL_MASK;  // Enable specific pins of the Pin Change Interrupt
   PCICR |= (1 << CONTROL_INT);   // Enable Pin Change Interrupt
+#endif
 }
 
 
@@ -40,6 +42,7 @@ void system_init()
 uint8_t system_control_get_state()
 {
   uint8_t control_state = 0;
+#ifndef CPU_MAP_ATMEGA32u4
   uint8_t pin = (CONTROL_PIN & CONTROL_MASK);
   #ifdef INVERT_CONTROL_PIN_MASK
     pin ^= INVERT_CONTROL_PIN_MASK;
@@ -52,6 +55,7 @@ uint8_t system_control_get_state()
     if (bit_isfalse(pin,(1<<CONTROL_FEED_HOLD_BIT))) { control_state |= CONTROL_PIN_INDEX_FEED_HOLD; }
     if (bit_isfalse(pin,(1<<CONTROL_CYCLE_START_BIT))) { control_state |= CONTROL_PIN_INDEX_CYCLE_START; }
   }
+#endif
   return(control_state);
 }
 
@@ -60,6 +64,8 @@ uint8_t system_control_get_state()
 // only the realtime command execute variable to have the main program execute these when
 // its ready. This works exactly like the character-based realtime commands when picked off
 // directly from the incoming serial data stream.
+
+#ifndef CPU_MAP_ATMEGA32u4
 ISR(CONTROL_INT_vect)
 {
   uint8_t pin = system_control_get_state();
@@ -78,6 +84,7 @@ ISR(CONTROL_INT_vect)
     }
   }
 }
+#endif
 
 
 // Returns if safety door is ajar(T) or closed(F), based on pin state.
